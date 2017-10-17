@@ -4,8 +4,11 @@ from tornado.iostream import IOStream
 from fukei import crypto
 import socket
 import logging
+from ..disguise import *
+from .. import disguise
 
-
+read_count=0
+write_count=0
 logger = logging.getLogger('upstream.local')
 class CryptoIOStream(IOStream):
 
@@ -15,16 +18,26 @@ class CryptoIOStream(IOStream):
     def __init__(self, socket, *args, **kwargs):
         self.crypto = crypto.new_crypto()
         super(CryptoIOStream, self).__init__(socket, *args, **kwargs)
-        
 
     def read_from_fd(self):
+        global read_count
         chunk = super(CryptoIOStream, self).read_from_fd()
         if chunk:
-            return self.crypto.decrypt(chunk)
+            #easton
+            #chunk = extract_from_fake_http_request(chunk)
+            chunk = self.crypto.decrypt(chunk)
+            read_count+=1
+            print 'read \tcount', read_count, hash(chunk)
+            return chunk
         return chunk
 
     def write_to_fd(self, data):
+        global write_count
+        write_count+=1
+        print 'write \tcount', write_count, hash(data)
         data = self.crypto.encrypt(data)
+        #easton
+        #data = disguise_as_http_request(data)
         return super(CryptoIOStream, self).write_to_fd(data)
 
     @property
